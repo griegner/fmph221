@@ -25,9 +25,18 @@ sZ = as.matrix(neuromaps_siips) %*% siips_pc$rotation[,1:4]
 pairs(sZ)
 
 # data frame description: sampling size, summary statistics, apparent trends etc
-
+sample_size = nrow(neuromaps_siips)
+summary_statistics = summary(neuromaps_siips)
 
 # initial analysis: multiple regression, interpretation, basic diagnostics
+model = lm(neuromaps_siips$siips ~ sZ)
+summary(model)
 
+model_unrefined = lm(siips ~ ., data = neuromaps_siips)
+summary(model_unrefined)
+## we notice that all of the predictors have very small coefficients in terms of a linear model 
+## towards the siips column. Also, only a few of them have statistically significant p values 
+## indicating that many of the predictors do not contribute much to the response variable.
 
+### let me know if I put that p-value interpretation correctly.^
 
