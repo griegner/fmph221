@@ -7,6 +7,7 @@ plot_histogram = function(dataframe){
   }
 }
 
+# normalize from 0 to 1 because log transformation of negative number or 0 is complex
 normalize = function(x) {
   (x - min(x)) / (max(x) - min(x))
 }
@@ -54,7 +55,7 @@ pairs(have_rel[c("siips", largest_p_values)], pch = 20)
 plot(m1)
 
 # since there are many variables, we will be using principal components
-siips_pc = prcomp(scaled_siips)
+siips_pc = prcomp(have_rel)
 siips_pc
 summary(siips_pc)
 
