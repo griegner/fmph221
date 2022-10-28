@@ -17,26 +17,26 @@ neuromaps_siips = read.csv("/Users/kevinnguyen/Desktop/fmph221/data/neuromaps-mn
 neuromaps_siips = apply(neuromaps_siips, 2, normalize) |> as.data.frame()
 
 # creating histograms for each variable (response and predictor)
-par(mfrow=c(3,3))
 plot_histogram(neuromaps_siips)
 
-# log transforming variables who have visibly skewed data
+# log transforming variables who have visibly skewed data (+1 because log(0) is infinity)
 cols_to_transform = c(
-  "aghourian2017", "alarkurtti2015",
-  "bedard2019", "dukart2018", "fazio2016",
-  "gallezot2017", "hesse2017", "hillmer2016",
-  "jaworska2020", "kaller2017", 
+  "aghourian2017", 
+  "bedard2019", 
+  "gallezot2017", 
+  "jaworska2020",  
   "sandiego2015",
-  "sasaki2012", "smith2017",
+  "sasaki2012", 
   "tuominen")
 for (i in cols_to_transform){
   neuromaps_siips[i] = log(neuromaps_siips[i] + 1)
+  plot_histogram(neuromaps_siips[i])
 }
 
 # rule out variables who have little to no relationships with the response variable
 corr_with_resp = cor(neuromaps_siips[, -1], neuromaps_siips$siips)
 rel_w_resp = colnames(neuromaps_siips[, -1])[abs(corr_with_resp) > 0.1]
-have_rel = neuromaps_siips[, c("siips", no_rel_w_resp)]
+have_rel = neuromaps_siips[, c("siips", rel_w_resp)]
 paste0("dropped ", ncol(neuromaps_siips) - ncol(have_rel), " columns")
 
 plot_histogram(have_rel)
@@ -46,10 +46,10 @@ m1 = lm(siips ~ ., data = have_rel)
 round(summary(m1)$coefficients, digits = 3)
 summary(m1)$r.squared
 
-# pairwise with smallest p-values
-p_values = summary(m1)$coefficients[, 4]
-largest_p_values = p_values[order(abs(p_values), decreasing = TRUE)][2:5] |> names()
-pairs(have_rel[c("siips", largest_p_values)], pch = 20)
+# pairwise with largest coefficients (absolute value)
+largest_values = summary(m1)$coefficients[-1, 1]
+largest_coef_abs = largest_values[order(abs(largest_values), decreasing = TRUE)][1:5] |> names()
+pairs(have_rel[c("siips", largest_coef_abs)], pch = 20)
 
 # residual plot: shows data not iid
 plot(m1)
