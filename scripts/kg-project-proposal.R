@@ -1,3 +1,6 @@
+library(ggplot2)
+library(GGally)
+
 # function to create histograms for each column in a dataframe
 plot_histogram = function(dataframe){
   for (i in 1:length(dataframe)){
@@ -21,13 +24,13 @@ plot_histogram(neuromaps_siips)
 
 # log transforming variables who have visibly skewed data (+1 because log(0) is infinity)
 cols_to_transform = c(
-  "aghourian2017", 
-  "bedard2019", 
-  "gallezot2017", 
-  "jaworska2020",  
-  "sandiego2015",
-  "sasaki2012", 
-  "tuominen")
+  "aghourian2017.feobv", 
+  "bedard2019.feobv", 
+  "gallezot2017.gsk189254", 
+  "jaworska2020.fallypride",  
+  "sandiego2015.flb457",
+  "sasaki2012.fepe2i", 
+  "tuominen.feobv")
 for (i in cols_to_transform){
   neuromaps_siips[i] = log(neuromaps_siips[i] + 1)
   plot_histogram(neuromaps_siips[i])
@@ -40,6 +43,8 @@ have_rel = neuromaps_siips[, c("siips", rel_w_resp)]
 paste0("dropped ", ncol(neuromaps_siips) - ncol(have_rel), " columns")
 
 plot_histogram(have_rel)
+
+ggpairs(have_rel[1:5])
 
 # initial model
 m1 = lm(siips ~ ., data = have_rel)
