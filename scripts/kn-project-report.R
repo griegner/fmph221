@@ -54,7 +54,6 @@ for (i in unique_groups){
   if (length(selected_variables) > 1) {
     df_for_pca = neuromaps_siips[selected_variables]
     siips_pca = prcomp(df_for_pca)
-    summary(siips_pca)
     new_col = data.frame(siips_pca$x[,1])
   } else {
     new_col = data.frame(neuromaps_siips[selected_variables])

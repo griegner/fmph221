@@ -1,0 +1,99 @@
+---
+title: "FMPH221 Project Report Code"
+author: "Gabriel Riegner & Kevin Nguyen"
+output: pdf_document
+---
+
+# Loading Libraries
+```{r}
+library(alr4)
+library(GGally)
+library(leaps)
+```
+
+# Functions
+```{r}
+
+```
+
+# Data and key
+```{r}
+
+```
+
+# Log transforming the skewed variables
+## Chosen by a visual inspection of each histogram
+```{r}
+
+```
+
+# Principal Component Analyses to reduce collinearity and dimensionality
+## Many of the predictors are measuring the same things
+```{r}
+
+```
+
+# Feature selection
+## using in-sample criteria to maximize R^2
+```{r}
+
+```
+
+# Pairs Plot
+```{r}
+ggpairs()
+```
+
+# Naive model
+```{r}
+ols1 = lm(siips ~ ., data = )
+residualPlots(ols1) #  nonlinearity
+vif(ols1) # collinearity
+ncvTest(ols1) # heteroscedasticity
+```
+
+# Addressing nonlinearity: quadratic terms
+```{r}
+
+```
+
+# Addressing collinearity: removing serotonin
+```{r}
+
+```
+
+# Check to see if errors are autocorrelated
+```{r}
+
+```
+
+# Bootstrap to re-estimate standard errors and t-values, under heteroscedasity
+```{r}
+
+```
+
+# Compiling bootstrap results
+```{r}
+
+```
+
+# Compare summary tables
+```{r}
+
+```
+
+# Compare confidence intervals
+```{r}
+
+```
+
+# Outliers
+```{r}
+plot(ols2, 4)
+outlierTest(ols2)
+```
+
+# Normality of errors
+```{r}
+qqPlot(ols2)
+```
