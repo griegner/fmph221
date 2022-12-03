@@ -13,24 +13,47 @@ library(leaps)
 
 # Functions
 ```{r}
-
+normalize = function(x) { # used to scale data to 0 to 1 [later important for log transformation]
+  (x - min(x)) / (max(x) - min(x))
+}
 ```
 
 # Data and key
 ```{r}
-
+neuromaps_df = read.csv("data/neuromaps-mni152_y-siips_res-basc444.csv")
+neuromaps_df = apply(neuromaps_df, 2, normalize) |> as.data.frame()
+neuromaps_key = read.csv("data/neuromaps-key.csv")
 ```
 
 # Log transforming the skewed variables
 ## Chosen by a visual inspection of each histogram
 ```{r}
-
+logcols = c(
+    "aghourian2017.feobv",
+    "bedard2019.feobv",
+    "gallezot2010.p943",
+    "jaworska2020.fallypride",
+    "sandiego2015.flb457",
+    "sasaki2012.fepe2i",
+    "tuominen.feobv"
+)
+neuromaps_df[logcols] = log(neuromaps_df[logcols] + 1)
 ```
 
 # Principal Component Analyses to reduce collinearity and dimensionality
 ## Many of the predictors are measuring the same things
 ```{r}
+neuromaps_pca = data.frame(siips = neuromaps_df$siips)
 
+for (group in unique(neuromaps_key$description)) {
+    colnames = neuromaps_key[neuromaps_key$description == group, "colname"]
+    if (length(colnames) > 1) { # first PC
+        pcs <- prcomp(neuromaps_df[, colnames])
+        neuromaps_pca[, paste0(group, ".pc1")] = pcs$x[, 1]
+    } else { # leave as is
+        neuromaps_pca[group] = neuromaps_df[, colnames]
+    }
+}
 ```
 
 # Feature selection
@@ -79,12 +102,15 @@ ncvTest(ols1) # heteroscedasticity
 
 # Compare summary tables
 ```{r}
-
+summary(ols2)$coefficients |> round(3)
+boot_summary |> round(3)
 ```
 
 # Compare confidence intervals
 ```{r}
-
+confint(ols2) |>
+    cbind(t(ci)) |>
+    round(3)
 ```
 
 # Outliers
