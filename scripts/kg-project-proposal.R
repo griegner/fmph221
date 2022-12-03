@@ -1,5 +1,6 @@
 library(ggplot2)
 library(GGally)
+library(dplyr)
 
 # function to create histograms for each column in a dataframe
 plot_histogram = function(dataframe){
@@ -18,6 +19,11 @@ normalize = function(x) {
 ## column 1 is the response, and the rest are predictors
 neuromaps_siips = read.csv("/Users/kevinnguyen/Desktop/fmph221/data/neuromaps-mni152_y-siips_res-basc444.csv")
 neuromaps_siips = apply(neuromaps_siips, 2, normalize) |> as.data.frame()
+
+# key
+neuromaps_key = read.csv("/Users/kevinnguyen/Desktop/fmph221/data/neuromaps-key.csv")
+neuromaps_key$colname = gsub(pattern = "-", replacement = ".", x = as.factor(neuromaps_key$colname))
+unique_groups = unique(neuromaps_key$description)
 
 # creating histograms for each variable (response and predictor)
 plot_histogram(neuromaps_siips)
@@ -44,33 +50,79 @@ paste0("dropped ", ncol(neuromaps_siips) - ncol(have_rel), " columns")
 
 plot_histogram(have_rel)
 
-ggpairs(have_rel[1:5])
-
 # initial model
 m1 = lm(siips ~ ., data = have_rel)
 round(summary(m1)$coefficients, digits = 3)
 summary(m1)$r.squared
 
-# pairwise with largest coefficients (absolute value)
-largest_values = summary(m1)$coefficients[-1, 1]
-largest_coef_abs = largest_values[order(abs(largest_values), decreasing = TRUE)][1:5] |> names()
-pairs(have_rel[c("siips", largest_coef_abs)], pch = 20)
+# too many variables so we do principal component to cut it down
+neuromaps_df = neuromaps_siips[1]
 
-# residual plot: shows data not iid
-plot(m1)
+for (i in unique_groups){
+  selected_variables = neuromaps_key[neuromaps_key$description == i,][[1]]
+  if (length(selected_variables) > 1) {
+    df_for_pca = have_rel[selected_variables]
+    siips_pca = prcomp(df_for_pca)
+    summary(siips_pca)
+    new_col = data.frame(siips_pca$x[,1])
+  } else {
+    new_col = data.frame(have_rel[selected_variables])
+  }
+  colnames(new_col) = i
+  neuromaps_df = cbind(neuromaps_df, new_col)
+}
 
-# since there are many variables, we will be using principal components
-siips_pc = prcomp(have_rel)
-siips_pc
-summary(siips_pc)
+# AIC
+# Backward elimination
+neuromaps_df_full <- lm(siips ~ ., data=neuromaps_df)
+summary(neuromaps_df_full)
+# Drop one variable at a time
+drop1(neuromaps_df_full, test="F")
+# Repeated elimination:
+step(neuromaps_df_full, direction="backward")
 
-### we pick all of the principal components with proportion of variance >= 0.05
-## we identify PC4 as the cutoff point
-zed = as.matrix(neuromaps_siips) %*% siips_pc$rotation[,1:4]
+# Forward selection
+# Add one variable at a time:
+add1(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive-activation` + 
+       `cerebral-blood-flow` + `synaptic-density` + 
+       `mu-opioid` + dopamine + serotonin + acetylcholine +
+       glutamate + gaba + cannabinoid + norepinephrine + histamine, 
+     test="F")
+add1(lm(siips ~ `mu-opioid`, data = neuromaps_df), ~ `cognitive-activation` + 
+       `cerebral-blood-flow` + `synaptic-density` + 
+       `mu-opioid` + dopamine + serotonin + acetylcholine +
+       glutamate + gaba + cannabinoid + norepinephrine + histamine, 
+     test="F")
+add1(lm(siips ~ `mu-opioid` + `cerebral-blood-flow`, data = neuromaps_df), ~ `cognitive-activation` + 
+       `cerebral-blood-flow` + `synaptic-density` + 
+       `mu-opioid` + dopamine + serotonin + acetylcholine +
+       glutamate + gaba + cannabinoid + norepinephrine + histamine, 
+     test="F")
+# Repeated addition:
+step(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive-activation` + 
+       `cerebral-blood-flow` + `synaptic-density` + 
+       `mu-opioid` + dopamine + serotonin + acetylcholine +
+       glutamate + gaba + cannabinoid + norepinephrine + histamine, 
+     direction="forward")
+# Repeated addition / elimination:
+step(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive-activation` + 
+       `cerebral-blood-flow` + `synaptic-density` + 
+       `mu-opioid` + dopamine + serotonin + acetylcholine +
+       glutamate + gaba + cannabinoid + norepinephrine + histamine, 
+     direction="both")
 
-# pairs plots of principal components
-pairs(zed)
+# All subsets regression by adjusted R squared
+library(leaps)
+best.adjr2 <- leaps(as.matrix(neuromaps_df[,2:13]), neuromaps_df[,1], method="adjr2")
+best.adjr2$which
+best.adjr2$size
+(best.adjr2.ind = which.max(best.adjr2$adjr2))
+best.adjr2$which[best.adjr2.ind,]
+plot(best.adjr2$size, best.adjr2$adjr2)
 
-m2 = lm(neuromaps_siips$siips ~ zed)
-summary(m2)
-plot(m2)
+# All subsets regression by Cp
+best.Cp <- leaps(as.matrix(neuromaps_df[,2:13]), neuromaps_df[,1], method="Cp")
+(best.Cp.ind = which.min(best.Cp$Cp))
+best.Cp$which[best.Cp.ind,]
+plot(best.Cp$size, best.Cp$Cp)
+
