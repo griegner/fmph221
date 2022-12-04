@@ -59,45 +59,69 @@ for (group in unique(neuromaps_key$description)) {
 # Feature selection
 ## using in-sample criteria to maximize R^2
 ```{r}
-
+xs = as.matrix(neuromaps_pca[, -1])
+all_subsets = leaps(xs, neuromaps_pca$siips, method = "adjr2")
+col_idx = all_subsets$which[which.max(all_subsets$adjr2), ]
+neuromaps_subset = data.frame(siips = neuromaps_pca$siips, xs[, col_idx])
 ```
 
 # Pairs Plot
 ```{r}
-ggpairs()
+ggpairs(neuromaps_subset)
 ```
 
 # Naive model
 ```{r}
-ols1 = lm(siips ~ ., data = )
+ols1 = lm(siips ~ ., data = neuromaps_subset)
 residualPlots(ols1) #  nonlinearity
 vif(ols1) # collinearity
 ncvTest(ols1) # heteroscedasticity
 ```
 
 # Addressing nonlinearity: quadratic terms
-```{r}
-
-```
-
 # Addressing collinearity: removing serotonin
 ```{r}
+ols2 = update(ols1, ~ . - serotonin.pc1 + I(cognitive.activation^2) + I(mu.opioid.pc1^2))
 
+anova(ols1, ols2) # confirm ols2 is a better model
+residualPlots(ols2) # fixes nonlinearities
+ncvTest(ols2) # heteroscedasticity still an issue
 ```
 
 # Check to see if errors are autocorrelated
 ```{r}
-
+resid = residuals(ols2)
+cor(resid[-1], resid[-length(resid)])
+durbinWatsonTest(ols2) # GLS model doesn't seem nessessary
 ```
 
 # Bootstrap to re-estimate standard errors and t-values, under heteroscedasity
 ```{r}
+n_bootstraps = 1000
+n_samples = nrow(neuromaps_subset)
+ols_coefs = ols2$coefficients
+boot_coefs = matrix(0, n_bootstraps, length(ols_coefs))
 
+for (i in 1:n_bootstraps) {
+    idx = sample(1:n_samples, replace = TRUE)
+    m = update(ols2, ~., data = neuromaps_subset[idx, ])
+    boot_coefs[i, ] <- m$coefficients
+}
+
+stderr = apply(boot_coefs, 2, sd)
+ci = apply(boot_coefs, 2, quantile, probs = c(0.025, 0.975))
+tvals = ols_coefs / stderr
+pvals = 2 * pt(-abs(tvals), df = nrow(neuromaps_subset) - length(ols_coefs))
 ```
 
 # Compiling bootstrap results
 ```{r}
-
+boot_summary = data.frame(
+    "Estimate" = ols_coefs,
+    "Std Error" = stderr,
+    "t value" = tvals,
+    "p value" = pvals
+)
 ```
 
 # Compare summary tables
