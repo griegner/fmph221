@@ -73,31 +73,31 @@ step(neuromaps_df_full, direction="backward")
 
 # Forward selection
 # Add one variable at a time:
-add1(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive-activation` + 
-       `cerebral-blood-flow` + `synaptic-density` + 
-       `mu-opioid` + dopamine + serotonin + acetylcholine +
+add1(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive.activation` + 
+       `cerebral.blood.flow` + `synaptic.density` + 
+       `mu.opioid` + dopamine + serotonin + acetylcholine +
        glutamate + gaba + cannabinoid + norepinephrine + histamine, 
      test="F")
-add1(lm(siips ~ `mu-opioid`, data = neuromaps_df), ~ `cognitive-activation` + 
-       `cerebral-blood-flow` + `synaptic-density` + 
-       `mu-opioid` + dopamine + serotonin + acetylcholine +
+add1(lm(siips ~ `mu.opioid`, data = neuromaps_df), ~ `cognitive.activation` + 
+       `cerebral.blood.flow` + `synaptic.density` + 
+       `mu.opioid` + dopamine + serotonin + acetylcholine +
        glutamate + gaba + cannabinoid + norepinephrine + histamine, 
      test="F")
-add1(lm(siips ~ `mu-opioid` + `cerebral-blood-flow`, data = neuromaps_df), ~ `cognitive-activation` + 
-       `cerebral-blood-flow` + `synaptic-density` + 
-       `mu-opioid` + dopamine + serotonin + acetylcholine +
+add1(lm(siips ~ `mu.opioid` + `cerebral.blood.flow`, data = neuromaps_df), ~ `cognitive.activation` + 
+       `cerebral.blood.flow` + `synaptic.density` + 
+       `mu.opioid` + dopamine + serotonin + acetylcholine +
        glutamate + gaba + cannabinoid + norepinephrine + histamine, 
      test="F")
 # Repeated addition:
-step(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive-activation` + 
-       `cerebral-blood-flow` + `synaptic-density` + 
-       `mu-opioid` + dopamine + serotonin + acetylcholine +
+step(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive.activation` + 
+       `cerebral.blood.flow` + `synaptic.density` + 
+       `mu.opioid` + dopamine + serotonin + acetylcholine +
        glutamate + gaba + cannabinoid + norepinephrine + histamine, 
      direction="forward")
 # Repeated addition / elimination:
-step(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive-activation` + 
-       `cerebral-blood-flow` + `synaptic-density` + 
-       `mu-opioid` + dopamine + serotonin + acetylcholine +
+step(lm(siips ~ 1, data = neuromaps_df), ~ `cognitive.activation` + 
+       `cerebral.blood.flow` + `synaptic.density` + 
+       `mu.opioid` + dopamine + serotonin + acetylcholine +
        glutamate + gaba + cannabinoid + norepinephrine + histamine, 
      direction="both")
 
