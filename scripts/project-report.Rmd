@@ -4,31 +4,31 @@ author: "Gabriel Riegner & Kevin Nguyen"
 output: pdf_document
 ---
 
-# Loading Libraries
-```{r}
+```{r include=FALSE}
 library(alr4)
 library(GGally)
 library(leaps)
 ```
 
-# Functions
+### Functions
 ```{r}
-normalize = function(x) { # used to scale data to 0 to 1 [later important for log transformation]
-  (x - min(x)) / (max(x) - min(x))
+# used to scale data to 0 to 1 [later important for log transformation]
+normalize <- function(x) {
+    (x - min(x)) / (max(x) - min(x))
 }
 ```
 
-# Data and key
+### Data and key
 ```{r}
-neuromaps_df = read.csv("data/neuromaps-mni152_y-siips_res-basc444.csv")
-neuromaps_df = apply(neuromaps_df, 2, normalize) |> as.data.frame()
-neuromaps_key = read.csv("data/neuromaps-key.csv")
+neuromaps_df <- read.csv("../data/neuromaps-mni152_y-siips_res-basc444.csv")
+neuromaps_df <- apply(neuromaps_df, 2, normalize) |> as.data.frame()
+neuromaps_key <- read.csv("../data/neuromaps-key.csv")
 ```
 
-# Log transforming the skewed variables
-## Chosen by a visual inspection of each histogram
+### Log transforming the skewed variables
+Chosen by a visual inspection of each histogram
 ```{r}
-logcols = c(
+logcols <- c(
     "aghourian2017.feobv",
     "bedard2019.feobv",
     "gallezot2010.p943",
@@ -37,86 +37,84 @@ logcols = c(
     "sasaki2012.fepe2i",
     "tuominen.feobv"
 )
-neuromaps_df[logcols] = log(neuromaps_df[logcols] + 1)
+neuromaps_df[logcols] <- log(neuromaps_df[logcols] + 1)
 ```
 
-# Principal Component Analyses to reduce collinearity and dimensionality
-## Many of the predictors are measuring the same things
+### Principal Component Analyses to reduce collinearity and dimensionality
+Many of the predictors are measuring the same thing, at least at the resolution we're working with
 ```{r}
-neuromaps_pca = data.frame(siips = neuromaps_df$siips)
+neuromaps_pca <- data.frame(siips = neuromaps_df$siips)
 
 for (group in unique(neuromaps_key$description)) {
-    colnames = neuromaps_key[neuromaps_key$description == group, "colname"]
+    colnames <- neuromaps_key[neuromaps_key$description == group, "colname"]
     if (length(colnames) > 1) { # first PC
         pcs <- prcomp(neuromaps_df[, colnames])
-        neuromaps_pca[, paste0(group, ".pc1")] = pcs$x[, 1]
+        neuromaps_pca[, paste0(group, ".pc1")] <- pcs$x[, 1]
     } else { # leave as is
-        neuromaps_pca[group] = neuromaps_df[, colnames]
+        neuromaps_pca[group] <- neuromaps_df[, colnames]
     }
 }
 ```
 
-# Feature selection
-## using in-sample criteria to maximize R^2
+### Variable selection
+Using in-sample criteria to maximize adjusted R^2
 ```{r}
-xs = as.matrix(neuromaps_pca[, -1])
-all_subsets = leaps(xs, neuromaps_pca$siips, method = "adjr2")
-col_idx = all_subsets$which[which.max(all_subsets$adjr2), ]
-neuromaps_subset = data.frame(siips = neuromaps_pca$siips, xs[, col_idx])
+xs <- as.matrix(neuromaps_pca[, -1])
+all_subsets <- leaps(xs, neuromaps_pca$siips, method = "adjr2")
+col_idx <- all_subsets$which[which.max(all_subsets$adjr2), ]
+neuromaps_subset <- data.frame(siips = neuromaps_pca$siips, xs[, col_idx])
 ```
 
-# Pairs Plot
-```{r}
+### Pairs Plot
+```{r fig.width=10,fig.height=8}
 ggpairs(neuromaps_subset)
 ```
 
-# Naive model
-```{r}
-ols1 = lm(siips ~ ., data = neuromaps_subset)
+### Naive model
+```{r fig.width=10,fig.height=6}
+ols1 <- lm(siips ~ ., data = neuromaps_subset)
 residualPlots(ols1) #  nonlinearity
 vif(ols1) # collinearity
 ncvTest(ols1) # heteroscedasticity
 ```
 
-# Addressing nonlinearity: quadratic terms
-# Addressing collinearity: removing serotonin
-```{r}
-ols2 = update(ols1, ~ . - serotonin.pc1 + I(cognitive.activation^2) + I(mu.opioid.pc1^2))
+### Addressing nonlinearity: quadratic terms
+### Addressing collinearity: removing serotonin
+```{r fig.width=10,fig.height=6}
+ols2 <- update(ols1, ~ . - serotonin.pc1 + I(cognitive.activation^2) + I(mu.opioid.pc1^2))
 
 anova(ols1, ols2) # confirm ols2 is a better model
 residualPlots(ols2) # fixes nonlinearities
 ncvTest(ols2) # heteroscedasticity still an issue
 ```
 
-# Check to see if errors are autocorrelated
+### Check to see if errors are autocorrelated
 ```{r}
-resid = residuals(ols2)
-cor(resid[-1], resid[-length(resid)])
 durbinWatsonTest(ols2) # GLS model doesn't seem nessessary
 ```
 
-# Bootstrap to re-estimate standard errors and t-values, under heteroscedasity
+### Bootstrap to re-estimate standard errors and t-values, under heteroscedasity
 ```{r}
-n_bootstraps = 1000
-n_samples = nrow(neuromaps_subset)
-ols_coefs = ols2$coefficients
-boot_coefs = matrix(0, n_bootstraps, length(ols_coefs))
+n_bootstraps <- 1000
+n_samples <- nrow(neuromaps_subset)
+ols_coefs <- ols2$coefficients
+boot_coefs <- matrix(0, n_bootstraps, length(ols_coefs))
 
 for (i in 1:n_bootstraps) {
-    idx = sample(1:n_samples, replace = TRUE)
-    m = update(ols2, ~., data = neuromaps_subset[idx, ])
+    idx <- sample(1:n_samples, replace = TRUE)
+    m <- update(ols2, ~., data = neuromaps_subset[idx, ])
     boot_coefs[i, ] <- m$coefficients
 }
 
-stderr = apply(boot_coefs, 2, sd)
-ci = apply(boot_coefs, 2, quantile, probs = c(0.025, 0.975))
-tvals = ols_coefs / stderr
-pvals = 2 * pt(-abs(tvals), df = nrow(neuromaps_subset) - length(ols_coefs))
+stderr <- apply(boot_coefs, 2, sd)
+ci <- apply(boot_coefs, 2, quantile, probs = c(0.025, 0.975))
+tvals <- ols_coefs / stderr
+pvals <- 2 * pt(-abs(tvals), df = nrow(neuromaps_subset) - length(ols_coefs))
 ```
 
-# Compiling bootstrap results
+### Compiling bootstrap results
 ```{r}
-boot_summary = data.frame(
+boot_summary <- data.frame(
     "Estimate" = ols_coefs,
     "Std Error" = stderr,
     "t value" = tvals,
@@ -124,26 +122,24 @@ boot_summary = data.frame(
 )
 ```
 
-# Compare summary tables
+### Compare summary tables
 ```{r}
-summary(ols2)$coefficients |> round(3)
-boot_summary |> round(3)
+summary(ols2)$coefficients |> round(3) # OLS model
+boot_summary |> round(3) # nonparametric bootstrap
 ```
 
-# Compare confidence intervals
+### Compare confidence intervals
 ```{r}
-confint(ols2) |>
-    cbind(t(ci)) |>
-    round(3)
+ci_df <- confint(ols2) |> cbind(t(ci))
+colnames(ci_df) <- c("ols-2.5%", "ols-97.5%", "boot-2.5%", "boot-97.5%")
+ci_df |> round(3)
 ```
 
-# Outliers
-```{r}
-plot(ols2, 4)
+### Check for outliers and normality of residuals
+```{r fig.width=10,fig.height=6}
 outlierTest(ols2)
-```
 
-# Normality of errors
-```{r}
-qqPlot(ols2)
+par(mfrow = c(1, 2))
+plot(ols2, 4) # influence
+qqPlot(ols2) # normality
 ```
